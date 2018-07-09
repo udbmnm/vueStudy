@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title>实现Vue动态数据绑定</title>
+	</head>
+	<body>
+		
+		
+		<!-- 页面中原本的 html 模板片段 -->
+		<div id="app">
+		    <p>姓名：{{user.name}}</p>
+		    <p>年龄：{{user.age}}</p>
+		    <p>test：{{test}}</p>
+		</div>
+				
+		
+		<script type="text/javascript">
+		
+		function Observer(obj) {
+
+				this.data = obj;
+				
+				for(let key in obj) {
+					let val = obj[key];
+					if(toString.call(val) === '[object Object]') {
+						new Observer(val);
+					}
+					console.log('defineProperty',key,val);
+					this.def(key,val);
+				}
+				
+				
+			}
+			Observer.prototype.watchList = {};
+			Observer.prototype.def = function(key,val) {
+				Object.defineProperty(this.data,key,{
+					get() {
+						console.log(`读取了${key}`);
+						return val;
+					},
+					enumerable: true,
+					configurable: true,
+					set : function(newVal) {
+//						console.log(`你修改了${key}的新值为${newVal}`);
+						val = newVal;
+						if(this.watchList.hasOwnProperty(key)) {
+							this.watchList[key].forEach(func=>{
+								func(newVal)
+							})
+						}
+						return val;
+					}.bind(this),
+				});
+			};
+			
+			Observer.prototype.$watch = function(key,func) {
+				
+				if(!this.watchList[key]) {
+					this.watchList[key] = [];
+				}
+				if(this.data.hasOwnProperty(key)) {
+					let val = this.data[key];
+					
+					if(toString.call(val) === '[object Object]') {
+						for(let child in val) {
+							this.$watch(child,func);
+						}
+					}else {
+						this.watchList[key] = [func];
+					}
+				}else {
+					this.watchList[key].push(func);
+				}
+			}
+			
+			function Vue(option) {
+				
+				this.html = '';
+				this.tmpl = '';
+				this.option = Object.assign({
+					el : null,
+					data : null,
+				},option);
+				
+				this.initOption();
+				this.initData();
+				this.compile(); //解析模版
+				this.render();
+				
+			}
+			
+			
+			Vue.prototype.initOption = function() {
+				
+				if(this.option.el === null) throw Error('el参数不存在！');
+				if(this.option.data === null) throw Error('data参数不存在！');
+				if(toString.call(this.option.data) !== '[object Object]') throw Error('data参数必须为对象！');
+				
+				
+			}
+			
+			Vue.prototype.compile = function() {
+				
+				let el = document.getElementById(this.option.el.slice(1));
+				let tmpl = el.innerHTML.trim();
+				let self = this;
+				tmpl = tmpl.replace(/{{(.+)}}/g,function(str,p1,offset, rawstr) {
+					self.addReact(p1);
+					return '<%='+p1 + '%>';
+				});
+				this.$el = el;
+				this.tmpl = tmpl;
+			}
+			Vue.prototype.addReact = function(prop) {
+				
+				let self = this;
+				this.$vm.$watch(prop, function (newVal) {
+				   console.log(`我的${prop}发生了变化，新值是${newVal}`);
+				   self.render(); //全量更新
+				});	
+				
+			}
+			Vue.prototype.initData = function() {
+				
+				this.$vm = new Observer(this.option.data);
+				this.$data = this.$vm.data;
+			}
+			Vue.prototype.render = function() {
+				
+				let data = this.$data;
+				let html = template(this.tmpl,data);
+				
+				this.$el.innerHTML = html;
+				
+			}
+
+		
+			let app = new Vue({
+			  el: '#app',
+			  data: {
+			    user: {
+			      name: 'monkeyWang',
+			      age: 25
+			    },
+			    test : 'xxxxxx'
+			  }
+			});
+		
+			
+			function template(str, data) {
+				let _formatJson_cache = {};
+				let fn = _formatJson_cache[str] ||
+					new Function("obj",
+						"let p=[],print=function(){p.push.apply(p,arguments);};" +
+						"with(obj){p.push('" + str
+						.replace(/[\r\t\n]/g, " ")
+						.split("<%").join("\t")
+						.replace(/((^|%>)[^\t]*)'/g, "$1\r")
+						.replace(/\t=(.*?)%>/g, "',$1,'")
+						.split("\t").join("');")
+						.split("%>").join("p.push('")
+						.split("\r").join("\\'") + "');}return p.join('');");
+				return data ? fn(data) : fn;
+			}
+		
+		</script>
+		
+		
+		
+	</body>
+</html>
