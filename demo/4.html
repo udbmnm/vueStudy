@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title></title>
+	</head>
+	<body>
+		
+		<script type="text/javascript">
+		
+			function Observer(obj) {
+
+				this.data = obj;
+				for(let key in obj) {
+					let data = obj[key];
+					if(toString.call(data) === '[object Object]') {
+						let keys = Object.keys(data);
+						keys.forEach(child=>{
+							let val = data[child];
+							if(!(val instanceof Observer)) {
+								console.log(`${key}.${child}是对象,递归Observer`);
+								new Observer(data[child]);
+							}
+						});
+					}
+					console.log('defineProperty',this.data,key);
+					Object.defineProperty(this.data,key,{
+						get() {
+							console.log(`你读取了${key}的值`);
+							return data;
+						},
+						set(newVal) {
+							console.log(`你修改了${key}的新值为${newVal}`);
+							data = newVal;
+							return data;
+						},
+						enumerable: true,
+						configurable: true
+					});
+				}
+			}
+			
+
+			window.app1 = new Observer({
+				name: 'youngwind',
+				age:  {a : 1 ,b : {c:2}}
+			});
+
+			
+			
+		</script>
+		
+		
+		
+	</body>
+</html>
