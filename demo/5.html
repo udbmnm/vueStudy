@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title>深层对象watch</title>
+	</head>
+	<body>
+		
+		<script type="text/javascript">
+		
+			function Observer(obj) {
+
+				this.data = obj;
+				
+				for(let key in obj) {
+					let val = obj[key];
+					if(toString.call(val) === '[object Object]') {
+						new Observer(val);
+					}
+					console.log('defineProperty',key,val);
+					this.def(key,val);
+				}
+				
+				
+			}
+			Observer.prototype.watchList = {};
+			Observer.prototype.def = function(key,val) {
+				Object.defineProperty(this.data,key,{
+					get() {
+//						console.log(`你读取了${key}的值`);
+						return val;
+					},
+					enumerable: true,
+					configurable: true,
+					set : function(newVal) {
+//						console.log(`你修改了${key}的新值为${newVal}`);
+						val = newVal;
+						if(this.watchList.hasOwnProperty(key)) {
+							this.watchList[key].forEach(func=>{
+								func(newVal)
+							})
+						}
+						return val;
+					}.bind(this),
+				});
+			};
+			
+			Observer.prototype.$watch = function(key,func) {
+				
+				if(!this.watchList[key]) {
+					this.watchList[key] = [];
+				}
+				if(this.data.hasOwnProperty(key)) {
+					let val = this.data[key];
+					
+					if(toString.call(val) === '[object Object]') {
+						for(let child in val) {
+							this.$watch(child,func);
+						}
+					}else {
+						this.watchList[key] = [func];
+					}
+				}else {
+					this.watchList[key].push(func);
+				}
+			};
+			
+
+			window.app1 = new Observer({
+				name: 'youngwind',
+				age:  {a : 1 ,b : {c:2}}
+			});
+	
+			app1.$watch('name', function (newVal) {
+				
+			   console.log(`我的name发生了变化，新值是${newVal}`);
+			   
+			});	
+			app1.$watch('age', function (newVal) {
+				
+			   console.log(`我的age发生了变化，新值是${newVal}`);
+			   
+			});			
+		</script>
+		
+		
+		
+	</body>
+</html>
