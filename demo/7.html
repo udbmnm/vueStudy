@@ -9,13 +9,21 @@
 		
 		<!-- 页面中原本的 html 模板片段 -->
 		<div id="app">
+			<p>空标签</p>
 		    <p>姓名：{{user.name}}</p>
 		    <p>年龄：{{user.age}}</p>
 		    <p>test：{{test}}</p>
+		    <input type="text" v-model="test" />
 		</div>
 				
 		
 		<script type="text/javascript">
+		
+		
+		function genRanWord(){
+			
+			return Math.random().toString(36).replace(/\.|\d/g,'');
+		}
 		
 		function Observer(obj) {
 
@@ -76,6 +84,7 @@
 			
 			function Vue(option) {
 				
+				this.domhash = {};
 				this.html = '';
 				this.tmpl = '';
 				this.option = Object.assign({
@@ -105,19 +114,36 @@
 				let el = document.getElementById(this.option.el.slice(1));
 				let tmpl = el.innerHTML.trim();
 				let self = this;
-				tmpl = tmpl.replace(/{{(.+)}}/g,function(str,p1,offset, rawstr) {
-					self.addReact(p1);
-					return '<%='+p1 + '%>';
+				
+				
+				tmpl = tmpl.replace(/<[\w\s]+>.*{{.+}}.*(?:<\/[\w\s]+>)/g,function(str,index) {
+					let randomId = genRanWord();
+					str = str.replace(/{{(.+)}}/g,function(str,p1,offset, rawstr) {
+						self.addReact(p1,randomId);
+						return '<%='+p1 + '%>';
+					});
+					//标记dom元素唯一id
+					return str.replace(/<([\s\w]+)>/,function(s,p1){
+						return `<${p1} id="${randomId}">`;
+					});
 				});
+				
 				this.$el = el;
 				this.tmpl = tmpl;
+				
+			
 			}
-			Vue.prototype.addReact = function(prop) {
+			Vue.prototype.addReact = function(prop,id) {
 				
 				let self = this;
+				this.domhash[prop] = id;
 				this.$vm.$watch(prop, function (newVal) {
 				   console.log(`我的${prop}发生了变化，新值是${newVal}`);
-				   self.render(); //全量更新
+				  // self.render(); //全量更新
+				  //更新指定dom
+				  let dom  = document.getElementById(id);
+				  dom.innerHTML = newVal;
+				  
 				});	
 				
 			}
@@ -130,8 +156,20 @@
 				
 				let data = this.$data;
 				let html = template(this.tmpl,data);
-				
+				let self = this;
 				this.$el.innerHTML = html;
+				
+			     let inputs = this.$el.getElementsByTagName('input');
+				 inputs = Array.from(inputs);
+				 inputs.forEach(item=>{
+				 	let variable = item.getAttribute('v-model');
+				      if(variable){
+				         item.value = self.$data[variable];
+				         item.addEventListener('input', function (e) {
+				           self.$data[variable] = item.value;;
+				         })
+				      }
+				 });
 				
 			}
 
